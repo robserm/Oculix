@@ -423,6 +423,52 @@ public class App {
   }
 
   /**
+   * Opens an app using a pre-tokenised argument array and waits up to {@code waitTime}
+   * seconds for it to be ready.  Each element of {@code arguments} maps to exactly
+   * one entry in the child-process {@code argv} — no whitespace splitting, no quote
+   * stripping.  Use this overload when arguments contain spaces, JVM {@code -D}
+   * system-property flags, or other values that must not be re-parsed by a shell.
+   *
+   * <p>Complements {@link App#App(String, String[])} which was added in 3.0.4 (#230);
+   * without this static factory, calling {@code App.open(executable, argList)} from
+   * Jython raised {@code ArrayIndexOutOfBoundsException} because the runtime tried
+   * — and failed — to coerce the Python list to the {@code int} expected by
+   * {@link #open(String, int)}.</p>
+   *
+   * @param executable absolute or resolvable path of the binary; whitespace-safe
+   * @param arguments  one element per {@code argv} entry, or {@code null} for none
+   * @param waitTime   seconds to wait for the app to become running
+   * @return the App instance
+   * @since 3.0.4 — see #230
+   */
+  public static App open(String executable, String[] arguments, int waitTime) {
+    App app = new App(executable, arguments);
+    app.openAndWait(waitTime);
+    return app;
+  }
+
+  /**
+   * Opens an app using a pre-tokenised argument array and waits 1 second for it
+   * to be ready.  Equivalent to {@link #open(String, String[], int)} with
+   * {@code waitTime = 1}.
+   *
+   * <p>This is the overload invoked when a Jython script passes a Python list as
+   * the second argument, e.g.:</p>
+   * <pre>
+   *   args = ["-Dfoo=bar", "-Dbaz=qux"]
+   *   idea = App.open("c:/path/to/idea64.exe", args)
+   * </pre>
+   *
+   * @param executable absolute or resolvable path of the binary; whitespace-safe
+   * @param arguments  one element per {@code argv} entry, or {@code null} for none
+   * @return the App instance
+   * @since 3.0.4 — see #230
+   */
+  public static App open(String executable, String[] arguments) {
+    return open(executable, arguments, 1);
+  }
+
+  /**
    * tries to open the app defined by this App instance<br>
    * do not wait for the app to get running
    *
@@ -470,6 +516,151 @@ public class App {
       log("App.open: already running: %s", this);
       return focus();
     }
+  }
+
+  private boolean openNewAndWait(int waitTime) {
+    process = osUtil.open(cmd.toStrings(), workDir);
+
+    if (process != null) {
+      do {
+        pause(1);
+
+        if (isRunning()) {
+          return true;
+        }
+
+        waitTime--;
+      } while (waitTime > 0);
+
+      log("App.openNew: not running after %d secs (%s)", waitTime, process.getName());
+      return false;
+
+    } else {
+      process = new NullProcess();
+    }
+
+    return false;
+  }
+
+  /**
+   * Always opens a new instance of the app defined by this App instance,
+   * even if a process with the same executable is already running.
+   *
+   * @return true on success, false otherwise
+   */
+  public boolean openNew() {
+    return openNewAndWait(5);
+  }
+
+  /**
+   * Always opens a new instance of the app defined by this App instance,
+   * even if a process with the same executable is already running,
+   * and waits up to {@code waitTime} seconds for it to become running.
+   *
+   * @param waitTime max wait time in seconds
+   * @return true on success, false otherwise
+   */
+  public boolean openNew(int waitTime) {
+    return openNewAndWait(waitTime);
+  }
+
+  /**
+   * Always opens a new instance of the given application, even if it is
+   * already running, and waits up to {@code waitTime} seconds for it to be
+   * ready.
+   *
+   * @param executable absolute or resolvable path of the binary; whitespace-safe
+   * @param waitTime   seconds to wait for the app to become running
+   * @return the App instance
+   */
+  public static App openNew(String executable, int waitTime) {
+    App app = new App(executable);
+    app.openNewAndWait(waitTime);
+    return app;
+  }
+
+  /**
+   * Always opens a new instance of the given application, even if it is
+   * already running, and waits 1 second for it to be ready.
+   *
+   * @param executable absolute or resolvable path of the binary; whitespace-safe
+   * @return the App instance
+   */
+  public static App openNew(String executable) {
+    return openNew(executable, 1);
+  }
+
+  /**
+   * Always opens a new instance of the given application with a space-separated
+   * arguments string, even if it is already running, and waits up to
+   * {@code waitTime} seconds for it to be ready.
+   *
+   * @param executable absolute or resolvable path of the binary; whitespace-safe
+   * @param arguments  space-separated arguments string, or {@code null} / empty for none
+   * @param waitTime   seconds to wait for the app to become running
+   * @return the App instance
+   * @since 3.0.4
+   */
+  public static App openNew(String executable, String arguments, int waitTime) {
+    App app = new App(executable, arguments);
+    app.openNewAndWait(waitTime);
+    return app;
+  }
+
+  /**
+   * Always opens a new instance of the given application with a space-separated
+   * arguments string, even if it is already running, and waits 1 second for it
+   * to be ready.
+   *
+   * @param executable absolute or resolvable path of the binary; whitespace-safe
+   * @param arguments  space-separated arguments string, or {@code null} / empty for none
+   * @return the App instance
+   * @since 3.0.4
+   */
+  public static App openNew(String executable, String arguments) {
+    return openNew(executable, arguments, 1);
+  }
+
+  /**
+   * Always opens a new instance of the given application with a pre-tokenised
+   * argument array, even if it is already running, and waits up to
+   * {@code waitTime} seconds for it to be ready.
+   * Each element of {@code arguments} maps to exactly one entry in the child
+   * process {@code argv} — no whitespace splitting, no quote stripping.
+   *
+   * @param executable absolute or resolvable path of the binary; whitespace-safe
+   * @param arguments  one element per {@code argv} entry, or {@code null} for none
+   * @param waitTime   seconds to wait for the app to become running
+   * @return the App instance
+   * @since 3.0.4
+   */
+  public static App openNew(String executable, String[] arguments, int waitTime) {
+    App app = new App(executable, arguments);
+    app.openNewAndWait(waitTime);
+    return app;
+  }
+
+  /**
+   * Always opens a new instance of the given application with a pre-tokenised
+   * argument array, even if it is already running, and waits 1 second for it
+   * to be ready.
+   * Each element of {@code arguments} maps to exactly one entry in the child
+   * process {@code argv} — no whitespace splitting, no quote stripping.
+   *
+   * <p>This is the overload invoked when a Jython script passes a Python list as
+   * the second argument, e.g.:</p>
+   * <pre>
+   *   args = ["-Dfoo=bar", "-Dbaz=qux"]
+   *   idea = App.openNew("c:/path/to/idea64.exe", args)
+   * </pre>
+   *
+   * @param executable absolute or resolvable path of the binary; whitespace-safe
+   * @param arguments  one element per {@code argv} entry, or {@code null} for none
+   * @return the App instance
+   * @since 3.0.4
+   */
+  public static App openNew(String executable, String[] arguments) {
+    return openNew(executable, arguments, 1);
   }
   //</editor-fold>
 

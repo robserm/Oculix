@@ -618,6 +618,18 @@ def openApp(app):
 
 
 ##
+# Always opens a new instance of the given application, even if it is already running. <br/>
+# Optionally accepts a list/array of arguments as the second parameter. <br/>
+# @param executable The path or name of the application executable.
+# @param args       Optional list of arguments (one element per argv entry).
+#
+def openNew(executable, args=None):
+    if args is None:
+        return App.openNew(executable)
+    return App.openNew(executable, args)
+
+
+##
 # Closes the given application. <br/>
 # @param app The name of the application. (case-insensitive)
 #

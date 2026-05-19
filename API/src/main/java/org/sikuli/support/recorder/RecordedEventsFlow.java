@@ -258,6 +258,12 @@ public class RecordedEventsFlow {
     List<IRecordedAction> actions = new ArrayList<>();
 
     Map.Entry<Long, NativeInputEvent> nextEventEntry = getNextEvent(time);
+
+    if (nextEventEntry == null) {
+      // no more events available
+      return actions;
+    }
+
     Long nextTime = nextEventEntry.getKey();
     NativeInputEvent nextEvent = nextEventEntry.getValue();
 

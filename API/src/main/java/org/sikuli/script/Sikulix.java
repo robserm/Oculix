@@ -4,9 +4,14 @@
 package org.sikuli.script;
 
 import org.sikuli.basics.Debug;
+import org.sikuli.basics.HotkeyEvent;
+import org.sikuli.basics.HotkeyListener;
+import org.sikuli.basics.HotkeyManager;
 import org.sikuli.support.FileManager;
 import org.sikuli.basics.Settings;
 import org.sikuli.support.Commons;
+import org.sikuli.support.runner.IRunner;
+import org.sikuli.script.support.Runner;
 import org.sikuli.support.RunTime;
 import org.sikuli.support.devices.Devices;
 import org.sikuli.support.devices.HelpDevice;
@@ -22,25 +27,48 @@ import java.io.File;
 public class Sikulix {
 
 public static void main(String[] args) throws FindFailed {
-    // Mode serveur: java -jar oculixapi.jar -s
-    // Demarre le ServerRunner legacy sur le port 50001
-    for (String arg : args) {
-      if ("-s".equals(arg)) {
-        try {
-          Class<?> cServer = Class.forName("org.sikuli.script.runners.ServerRunner");
-          cServer.getMethod("run").invoke(null);
-          System.exit(0);
-        } catch (Exception e) {
-          System.err.println("[ERROR] Failed to start ServerRunner: " + e.getMessage());
-          e.printStackTrace();
-          System.exit(1);
-        }
-      }
+    Commons.setStartArgs(args);
+
+    // -h / --help
+    if (Commons.hasArg("h")) {
+      Commons.printHelp();
+      System.exit(0);
     }
 
     if (args.length == 1 && "buildDate".equals(args[0])) {
       System.out.println(Commons.getSxBuildStamp());
       System.exit(0);
+    }
+
+    // -r / --run: run a Jython (.py / .sikuli) or JavaScript script headlessly
+    if (Commons.hasArg("r")) {
+      Commons.loadOpenCV();
+      HotkeyManager.getInstance().addHotkey("Abort", new HotkeyListener() {
+        @Override
+        public void hotkeyPressed(HotkeyEvent e) {
+          Runner.abortAll();
+          org.sikuli.script.support.RunTime.terminate(254, "AbortKey was pressed: aborting all running scripts");
+        }
+      });
+      String[] scripts = org.sikuli.script.support.RunTime.resolveRelativeFiles(Commons.getArgs("r"));
+      int exitCode = Runner.runScripts(scripts, Commons.getUserArgs(), new IRunner.Options());
+      if (exitCode > 255) {
+        exitCode = 254;
+      }
+      org.sikuli.script.support.RunTime.terminate(exitCode, "");
+    }
+
+    // -s / --server: start the legacy ServerRunner on port 50001
+    if (Commons.hasArg("s")) {
+      try {
+        Class<?> cServer = Class.forName("org.sikuli.script.runners.ServerRunner");
+        cServer.getMethod("run").invoke(null);
+        System.exit(0);
+      } catch (Exception e) {
+        System.err.println("[ERROR] Failed to start ServerRunner: " + e.getMessage());
+        e.printStackTrace();
+        System.exit(1);
+      }
     }
 
     System.out.println("SikuliX API: nothing to do");
